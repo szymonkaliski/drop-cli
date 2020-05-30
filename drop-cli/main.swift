@@ -8,7 +8,27 @@
 
 import AppKit
 
-// MARK: app -
+// MARK: utlils -
+
+func download(source: URL, to destination: URL, completion: @escaping (String?, Error?) -> Void) {
+  if FileManager().fileExists(atPath: destination.path) {
+    completion(destination.path, nil)
+  } else if let dataFromURL = NSData(contentsOf: source) {
+    if dataFromURL.write(to: destination, atomically: true) {
+      completion(destination.path, nil)
+    } else {
+      let error = NSError(domain: "Error saving file", code: 1, userInfo: nil)
+      completion(destination.path, error)
+    }
+  } else {
+    let error = NSError(domain: "Error downloading file", code: 2, userInfo: nil)
+    completion(destination.path, error)
+  }
+}
+
+func temporaryFileURL(fileName: String = UUID().uuidString) -> URL {
+  return URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(fileName)
+}
 
 func synthesizeDrag(from window: NSWindow, at location: NSPoint) -> NSEvent? {
   return NSEvent.mouseEvent(with: .leftMouseDragged,
@@ -22,14 +42,16 @@ func synthesizeDrag(from window: NSWindow, at location: NSPoint) -> NSEvent? {
                             pressure: 1)
 }
 
+// MARK: app -
+
 class AppDelegate: NSObject, NSApplicationDelegate, NSDraggingSource {
-  var fileUrls: [URL] = []
+  var urls: [URL] = []
   let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 1, height: 1), styleMask: [.borderless], backing: .buffered, defer: false, screen: nil)
 
-  func applicationDidFinishLaunching(_ notification: Notification) {
+  func applicationDidFinishLaunching(_: Notification) {
     window.makeKeyAndOrderFront(nil)
 
-    let draggingItems = fileUrls.map { (url) -> NSDraggingItem in
+    let draggingItems = urls.map { (url) -> NSDraggingItem in
       let pasteboardItem = NSPasteboardItem()
       pasteboardItem.setData(url.dataRepresentation, forType: .fileURL)
 
@@ -45,11 +67,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSDraggingSource {
     }
   }
 
-  func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+  func draggingSession(_: NSDraggingSession, sourceOperationMaskFor _: NSDraggingContext) -> NSDragOperation {
     return .copy
   }
 
-  func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+  func draggingSession(_: NSDraggingSession, endedAt _: NSPoint, operation _: NSDragOperation) {
     exit(0)
   }
 }
@@ -63,24 +85,47 @@ if CommandLine.arguments.count < 2 {
 
 let fileManager = FileManager.default
 let currentPath = URL(fileURLWithPath: fileManager.currentDirectoryPath)
-var fileUrls: [URL] = []
+var urls: [URL] = []
 
 for argument in CommandLine.arguments.dropFirst() {
-  let url = URL(fileURLWithPath: argument, relativeTo: currentPath)
+  if argument.starts(with: "http") {
+    if let urlArgument = URL(string: argument) {
+      print("\(argument) looks like an URL, downloading...", terminator: "")
 
-  if fileManager.fileExists(atPath: url.path) {
-    fileUrls.append(url)
+      let tempFile = temporaryFileURL().appendingPathExtension(urlArgument.pathExtension)
+
+      download(source: urlArgument, to: tempFile, completion: { (path, error) in
+        if error != nil {
+          print("error")
+          print(error.debugDescription)
+        }
+        else {
+          urls.append(tempFile)
+          print("done")
+        }
+      })
+    }
+  }
+  else {
+    let url = URL(fileURLWithPath: argument, relativeTo: currentPath)
+
+    if fileManager.fileExists(atPath: url.path) {
+      urls.append(url)
+    }
+    else {
+      print("\(argument) doesn't seem to exist")
+    }
   }
 }
 
-if fileUrls.isEmpty {
+if urls.isEmpty {
   print("no existing files passed as arguments")
   exit(1)
 }
 
 let app = NSApplication.shared
 let delegate = AppDelegate()
-delegate.fileUrls = fileUrls
+delegate.urls = urls
 
 app.delegate = delegate
 app.run()
