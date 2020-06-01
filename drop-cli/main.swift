@@ -119,7 +119,7 @@ for argument in CommandLine.arguments.dropFirst() {
 }
 
 if urls.isEmpty {
-  print("no existing files passed as arguments")
+  print("nothing to paste, exiting")
   exit(1)
 }
 
