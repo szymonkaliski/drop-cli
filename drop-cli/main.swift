@@ -31,15 +31,17 @@ func temporaryFileURL(fileName: String = UUID().uuidString) -> URL {
 }
 
 func synthesizeDrag(from window: NSWindow, at location: NSPoint) -> NSEvent? {
-  return NSEvent.mouseEvent(with: .leftMouseDragged,
-                            location: location,
-                            modifierFlags: .deviceIndependentFlagsMask,
-                            timestamp: 0,
-                            windowNumber: window.windowNumber,
-                            context: nil,
-                            eventNumber: 0,
-                            clickCount: 1,
-                            pressure: 1)
+  return NSEvent.mouseEvent(
+    with: .leftMouseDragged,
+    location: location,
+    modifierFlags: [],
+    timestamp: 0,
+    windowNumber: window.windowNumber,
+    context: nil,
+    eventNumber: 0,
+    clickCount: 1,
+    pressure: 1
+  )
 }
 
 // MARK: app -
@@ -51,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSDraggingSource {
   func applicationDidFinishLaunching(_: Notification) {
     window.makeKeyAndOrderFront(nil)
 
-    let draggingItems = urls.map { (url) -> NSDraggingItem in
+    let draggingItems = urls.map { url -> NSDraggingItem in
       let pasteboardItem = NSPasteboardItem()
       pasteboardItem.setData(url.dataRepresentation, forType: .fileURL)
 
@@ -63,7 +65,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSDraggingSource {
 
     if let dragEvent = synthesizeDrag(from: window, at: NSEvent.mouseLocation) {
       window.contentView?.beginDraggingSession(with: draggingItems, event: dragEvent, source: self)
-      dragEvent.cgEvent?.post(tap: CGEventTapLocation.cghidEventTap)
+      NSApplication.shared.postEvent(dragEvent, atStart: true)
     }
   }
 
@@ -94,25 +96,22 @@ for argument in CommandLine.arguments.dropFirst() {
 
       let tempFile = temporaryFileURL().appendingPathExtension(urlArgument.pathExtension)
 
-      download(source: urlArgument, to: tempFile, completion: { (path, error) in
+      download(source: urlArgument, to: tempFile, completion: { _, error in
         if error != nil {
           print("error")
           print(error.debugDescription)
-        }
-        else {
+        } else {
           urls.append(tempFile)
           print("done")
         }
       })
     }
-  }
-  else {
+  } else {
     let url = URL(fileURLWithPath: argument, relativeTo: currentPath)
 
     if fileManager.fileExists(atPath: url.path) {
       urls.append(url)
-    }
-    else {
+    } else {
       print("\(argument) doesn't seem to exist")
     }
   }

@@ -20,7 +20,7 @@ end)
 
 - `Xcode`
 - [Swift 5 Runtime Support for Command Line Tools](https://support.apple.com/kb/DL1998)
-- tested on macOS Mojave 10.14.6
+- tested on macOS Sonoma 14.1
 
 ## Building
 
